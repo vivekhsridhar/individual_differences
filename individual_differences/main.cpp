@@ -1,26 +1,16 @@
 //
 //  main.cpp
-//  DecisionNetwork:
-//  is an individual based simulation of decision making in animal groups. Agents in the simulation experience various
-//  environmental cues and associated rewards. The Rescorla - Wagner model is used as a model for associative learning.
+//  personality_extension:
+//  is an individual based simulation of individual differences and animal collectives. Agents in the simulation form a school where we examine the relative position of an individual in a group based on it's trait value relative to others in the group. We also examine changes in group properties as the average trait of individuals in the group changes.
 //
-//  Quirks:
-//  1.  the reward_radius (in CLASS CUE) is used as the independent variable to calculate reward experienced by each
-//  individual. A reward function is generated based on this radius such that obtained reward is proportional to this radius.
-//  The radius is reduced discretely in integers until it hits zero. Agents that approach the cue after this do not receive a
-//  reward. This is initialised as reward_reset
+//  ----------------------------------------------------------------------------
+//  Important Parameters:
+//  1.  speed (and ssd): The speed model qualitatively reproduces the pattern shown by the "sociability assay". ssd is the standard deviation (s.d.) of the normal distribution used to pick agents (so agents across replicate simulations differ in their speeds as well)
+//  2.  delta (and dsd): The delta model represents social interactions between individuals as interpreted by the "personality" literature. Differences in delta also reproduces the assay pattern. dsd is the standard deviation (s.d.) of the normal distribution used to pick delta
+//  3.  omega (and osd): Omega is how individuals weight their personal preference. This refers to their current direction of movement in this particular case. osd is the standard deviation (s.d.) of the normal distribution used to pick omega
 //
-//  2.  the reward_zone on the other hand is a zone within which the agents need to enter in order to receive a reward
-//
-//  3.  the split_between parameter determines how many individuals these units of reward are distributed among. Once set, it
-//  should not change (when comparing groups of different sizes) but the reward reset and the split between have to be
-//  identical. This ensures that an individual on average receives a reward of 1 unit. The rescorla-wagner learning rate
-//  is set accordingly
-//
-//  4.  distanceTo function (in CLASS VECTOR2D) measures distance squared. That is the units used to express zone of
-//  deflection, orientation and perception
-//
-//  Created by Vivek Hari Sridhar on 14/01/16.
+//  ----------------------------------------------------------------------------
+//  Created by Vivek Hari Sridhar on 10/08/16.
 //  Copyright © 2016 Vivek Hari Sridhar. All rights reserved.
 //
 
@@ -30,12 +20,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <thread>
+#include <algorithm>
+#include <functional>
 #include "opencv2/core.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/videoio.hpp"
 #include "parameteres.h"
-#include <armadillo>
 
 using namespace std;
 using namespace rnd;
@@ -43,7 +34,6 @@ using namespace cv;
 
 std::ofstream outputFile1;
 std::ofstream outputFile2;
-std::ofstream outputFile3;
 
 int main()
 {
@@ -52,49 +42,38 @@ int main()
     rnd::set_seed(seed);
     
     // Open output file
-    std::string filename_gf;
-    filename_gf = "group_foraging.csv";
-    outputFile1.open(filename_gf.c_str());
+    std::string filename_gp;
+    filename_gp = "group_properties.csv";
+    outputFile1.open(filename_gp.c_str());
     
-    std::string filename_if;
-    filename_if = "individual_foraging.csv";
-    outputFile2.open(filename_if.c_str());
-    
-    std::string filename_fc;
-    filename_fc = "food_consumption.csv";
-    outputFile3.open(filename_fc.c_str());
+    std::string filename_rp;
+    filename_rp = "relative_positions.csv";
+    outputFile2.open(filename_rp.c_str());
     
     // Set parameters
     timestep_inc = 0.1;
-    arena_size = 500;
+    arena_size = 1000;
     top_left.x = 0.0;
     top_left.y = 0.0;
     bottom_right.x = arena_size;
     bottom_right.y = arena_size;
-    arena_centre.x = arena_size / 2.0;
-    arena_centre.y = arena_size / 2.0;
     
-    total_agents = 20;
+    total_agents = 5;
     angular_error_sd = 0.02;
     max_turning_rate = 60.0;
-    zod = 1.0;
-    zoo = 36.0;
-    zop = 225.0;
-    alpha = 90.0;
-    omega = 0.01;
-    osd = 0.01;
-    delta = 1.0;
-    dsd = 0.0;
     speed = 1.0;
     ssd = 0.1;
+    delta = 1.0;
+    dsd = 0.01;
+    omega = 1.0;
+    osd = 0.01;
+    zod = 1.0;
+    zoo = 9.0;
+    zop = 90000.0;
+    alpha = 90.0;
     iid = 0.0;
     
-    reward_zone = 10;
-    food_particles = 50000;
-    cue_dist = 150;
     apply_boundary = 10;
-    cue_range = 30;
-    food_consumed = 0;
     
     agent = new individual[total_agents];
     CS = new cue[number_of_cues];
@@ -105,17 +84,20 @@ int main()
     record = false;
     
     int num_replicates = 400;
-    int num_timesteps = 100000;
+    int num_timesteps = 20000;
     
     CVec2D centroid, polarisation;
+    double rotation;
     
-    outputFile1 << "mean speed" << ", " << "calculated mean speed" << ", " << "mean delta" << ", " << "calculated mean delta" << ", " << "mean omega" << ", " << "calculated mean omega" << ", " << "foraging time" << "\n";
-    outputFile2 << "agent speed" << ", " << "mean speed" << ", " << "calculated mean speed" << ", " << "agent delta" << ", " << "mean delta" << ", " << "calculated mean delta" << ", " << "agent omega" << ", " << "mean omega" << ", " << "calculated mean omega" << ", " << "fitness" << "\n";
-    outputFile3 << "time" << ", " << "food consumed" << ", " << "mean speed" << ", " << "calculated mean speed" << ", " << "mean delta" << ", " << "calculated mean delta" << ", " << "mean omega" << ", " << "calculated mean omega" << ", " << "replicate" << "\n";
+    outputFile1 << "calculated mean delta" << ", " << "calculated mean speed" << ", " << "polarisation" << ", " << "iid" << "\n";
+    outputFile2 << "agent omega" << ", " << "agent delta" << ", " << "agent speed" << ", " << "mean omega" << ", " << "mean delta" << ", " << "mean speed" << ", " << "omega rank" << ", " << "delta rank" << ", " << "speed rank" << ", " << "front back distance" << ", " << "centroid distance" << ", " << "nnd" << ", " << "timestep number" << ", " << "replicate" << "\n";
     
     Size S(static_cast<int>(arena_size), static_cast<int>(arena_size));
     
-    for (speed = 2.0; speed >= 0.2; )
+    // loop through speed/delta and omega
+    // speed and delta covary in the combination model
+    // in case running a single variable model, set the other (speed/delta) to 1.0 with the corresponding s.d. to 0.0 and change the variable on the loop iterator
+    for (delta = 0.01; delta <= 0.1; )
     {
         std::cout << "\n" << delta << " " << speed << "\n";
         for (omega = 0.01; omega <= 0.1; )
@@ -124,23 +106,41 @@ int main()
             for (int i = 0; i != num_replicates; ++i)
             {
                 SetupSimulation();
-                
-                int time_at_consumption = 0;
                 bool result = 0;
-                food_consumed = 0;
                 
+                // calculations below are used to calculate each agent's ranked omega, delta and speed within it's group
                 double average_omega = 0.0;
                 double average_delta = 0.0;
                 double average_speed = 0.0;
+                double omega_rank[total_agents];
+                double delta_rank[total_agents];
+                double speed_rank[total_agents];
                 for (int n = 0; n != total_agents; ++n)
                 {
                     average_omega += agent[n].omega;
                     average_delta += agent[n].delta;
                     average_speed += agent[n].speed;
+                    omega_rank[n] = agent[n].omega;
+                    delta_rank[n] = agent[n].delta;
+                    speed_rank[n] = agent[n].speed;
                 }
                 average_omega /= total_agents;
                 average_delta /= total_agents;
                 average_speed /= total_agents;
+                
+                sort(omega_rank, omega_rank + total_agents);
+                sort(delta_rank, delta_rank + total_agents);
+                sort(speed_rank, speed_rank + total_agents);
+                
+                for (int m = 0; m != total_agents; ++m) // m goes through sorted rank arrays
+                {
+                    for (int n = 0; n != total_agents; ++n) // n goes through agents
+                    {
+                        if (omega_rank[m] == agent[n].omega) agent[n].omega_rank = 5 - m;
+                        if (delta_rank[m] == agent[n].delta) agent[n].delta_rank = 5 - m;
+                        if (speed_rank[m] == agent[n].speed) agent[n].speed_rank = 5 - m;
+                    }
+                }
                 
                 for(int j = 0; j != num_timesteps; ++j)
                 {
@@ -158,42 +158,33 @@ int main()
                     
                     ++timestep_number;
                     
-                    if (j % 5000 == 0)
+                    if (j % 2000 == 0)
                     {
-                        result = CalculateGroupProperties(centroid, polarisation);
+                        result = GroupTogether();
                         if (result)
                         {
-                            int total_food = 0;
-                            for (int f = 0; f != number_of_cues; ++f)
-                            {
-                                if (CS[f].status) total_food += CS[f].reward_radius;
-                            }
-                            int cum_food_intake = number_of_cues * food_particles - total_food;
+                            CalculateGroupProperties(centroid, polarisation, rotation);
+                            NearestNeighbourDistance();
                             
-                            outputFile3 << j << ", " << cum_food_intake << ", " << speed << ", " << average_speed << ", " << delta << ", " << average_delta << ", " << omega << ", " << average_omega << ", " << i << "\n";
+                            if (centroid.x > 5.0 && centroid.y > 5.0 && centroid.x < arena_size - 5.0 && centroid.y < arena_size - 5.0) // ignore output if group may be across boundaries (periodic boundary conditions)
+                            {
+                                for (int a = 0; a != total_agents; ++a)
+                                {
+                                    outputFile2 << agent[a].omega << ", " << agent[a].delta << ", " << agent[a].speed << ", " << omega << ", " << delta << ", " << speed << ", " << agent[a].omega_rank << ", " << agent[a].delta_rank << ", " << agent[a].speed_rank << ", " << agent[a].FrontBackDistance(centroid, polarisation) << ", " << (agent[a].r_centre - centroid).length() << ", " << agent[a].nnd << ", " << j << ", " << i << "\n";
+                                }
+                                
+                                outputFile1 << average_delta << ", " << average_speed << ", " << polarisation.length() << ", " << iid << "\n";
+                            }
                         }
                     }
-                    
-                    if (food_consumed == 3 && time_at_consumption == 0)
-                    {
-                        time_at_consumption = timestep_number;
-                        break;
-                    }
-                    if (j == num_timesteps - 1 && food_consumed != 3) time_at_consumption = num_timesteps;
-                }
-                
-                outputFile1 << speed << ", " << average_speed << ", " << delta << ", " << average_delta << ", " << omega << ", " << average_omega << ", " << time_at_consumption << "\n";
-                
-                for (int a = 0; a != total_agents; ++a)
-                {
-                    outputFile2 << agent[a].speed << ", " << speed << ", " << average_speed << ", " << agent[a].delta << ", " << delta << ", " << average_delta << ", " << agent[a].omega << ", " << omega << ", " << average_omega << ", " << agent[a].fitness << "\n";
                 }
             }
             
             omega += 0.01;
         }
         
-        speed -= 0.2;
+        delta += 0.01;
+        speed -= 0.1;
     }
     
     echo("simulation end");
@@ -203,19 +194,20 @@ int main()
 void MoveAgents()
 {
     CalculateSocialForces();
-    CueTiming();
-    RespondToCue();
     double dev_angle = 360.0f * normal(0.0, angular_error_sd);
     
     for(int i = 0; i != total_agents; ++i)
     {
+        agent[i].AddPersonalPreference();
+        
         // now each fish has a unit vector which is its desired direction of travel in the next timestep
-        agent[i].Move(timestep_inc, arena_centre, arena_size, dev_angle, apply_boundary);
+        agent[i].Move(timestep_inc, arena_size, dev_angle);
     }
 }
 
 void CalculateSocialForces()
 {
+    CVec2D dir;
     double dist;
     CVec2D temp_vector;
     
@@ -237,19 +229,30 @@ void CalculateSocialForces()
     {
         for(int j = (i+1); j != total_agents; ++j)
         {
+            temp_vector = (agent[j].r_centre - agent[i].r_centre);
+            
+            if (std::abs(temp_vector.x) > arena_size / 2)
+            {
+                if (agent[i].r_centre.x < agent[j].r_centre.x) temp_vector.x = agent[j].r_centre.x - (agent[i].r_centre.x + arena_size);
+                else temp_vector.x = agent[j].r_centre.x - (agent[i].r_centre.x - arena_size);
+            }
+            if (std::abs(temp_vector.y) > arena_size / 2)
+            {
+                if (agent[i].r_centre.y < agent[j].r_centre.y) temp_vector.y = agent[j].r_centre.y - (agent[i].r_centre.y + arena_size);
+                else temp_vector.y = agent[j].r_centre.y - (agent[i].r_centre.y - arena_size);
+            }
+            
             // check to see if it is reasonable that you may be interacting
-            if(agent[i].r_centre.x < (agent[j].r_centre.x - zop_length) || agent[i].r_centre.x > (agent[j].r_centre.x + zop_length)
-               || agent[i].r_centre.y < (agent[j].r_centre.y - zop_length) || agent[i].r_centre.y > (agent[j].r_centre.y + zop_length))
+            if(temp_vector.x * temp_vector.x > zop_length || temp_vector.y * temp_vector.y > zop_length)
             {
                 // cannot be close enough to interact with
             }
             else
             {
-                dist = agent[i].r_centre.distanceTo(agent[j].r_centre);	// fastest way to check distance
+                dist = temp_vector.length() * temp_vector.length();	// fastest way to check distance
                 
                 if(dist < zod_length)	// this has highest priority
                 {
-                    temp_vector = (agent[j].r_centre - agent[i].r_centre);
                     temp_vector = temp_vector.normalise();
                     
                     agent[i].total_zod+= (-temp_vector);
@@ -260,12 +263,12 @@ void CalculateSocialForces()
                 
                 else if (dist < zoo_length)
                 {
-                    if((agent[j].r_centre - agent[i].r_centre).smallestAngleTo(agent[i].direction) < (180.0 - alpha/2))
+                    if(temp_vector.smallestAngleTo(agent[i].direction) < (180.0 - alpha/2))
                     {
                         agent[i].total_zoo += agent[j].direction.normalise();
                         agent[i].zoo_count++;
                     }
-                    if((agent[i].r_centre - agent[j].r_centre).smallestAngleTo(agent[j].direction) < (180.0 - alpha/2))
+                    if((-temp_vector).smallestAngleTo(agent[j].direction) < (180.0 - alpha/2))
                     {
                         agent[j].total_zoo += agent[i].direction.normalise();
                         agent[j].zoo_count++;
@@ -274,15 +277,14 @@ void CalculateSocialForces()
                 
                 else if(dist < zop_length)
                 {
-                    temp_vector = (agent[j].r_centre - agent[i].r_centre);
                     temp_vector = temp_vector.normalise();
                     
-                    if((agent[j].r_centre - agent[i].r_centre).smallestAngleTo(agent[i].direction) < (180.0 - alpha/2))
+                    if(temp_vector.smallestAngleTo(agent[i].direction) < (180.0 - alpha/2))
                     {
                         agent[i].total_zop += temp_vector;
                         agent[i].zop_count++;
                     }
-                    if((agent[i].r_centre - agent[j].r_centre).smallestAngleTo(agent[j].direction) < (180.0 - alpha/2))
+                    if((-temp_vector).smallestAngleTo(agent[j].direction) < (180.0 - alpha/2))
                     {
                         agent[j].total_zop += (-temp_vector);
                         agent[j].zop_count++;
@@ -292,7 +294,7 @@ void CalculateSocialForces()
         }
     }
     
-    // now have total_zod, total_zoo and total_zop calculated for all individuals
+    // now have total_zod and total_zop calculated for all individuals
     for(int k = 0; k != total_agents; ++k)
     {
         if(agent[k].zod_count > 0)
@@ -308,7 +310,7 @@ void CalculateSocialForces()
         }
         else if(agent[k].zoo_count > 0 && agent[k].zop_count == 0)
         {
-            if(fabs(agent[k].total_zoo.x) < FLT_EPSILON && fabs(agent[k].total_zoo.y) < FLT_EPSILON)
+            if(fabs(agent[k].total_zoo.x) < FLT_EPSILON && fabs(agent[k].total_zoo.y) < FLT_EPSILON)	// if no zoo fish were found or if they cancelled each other out
             {
                 // just do a correlated random walk
                 agent[k].desired_direction = agent[k].direction;
@@ -320,7 +322,7 @@ void CalculateSocialForces()
         }
         else if(agent[k].zoo_count == 0 && agent[k].zop_count > 0)
         {
-            if(fabs(agent[k].total_zop.x) < FLT_EPSILON && fabs(agent[k].total_zop.y) < FLT_EPSILON)
+            if(fabs(agent[k].total_zop.x) < FLT_EPSILON && fabs(agent[k].total_zop.y) < FLT_EPSILON)	// if no zoo fish were found or if they cancelled each other out
             {
                 // just do a correlated random walk
                 agent[k].desired_direction = agent[k].direction;
@@ -332,7 +334,7 @@ void CalculateSocialForces()
         }
         else if(agent[k].zoo_count > 0 && agent[k].zop_count > 0)
         {
-            if(fabs(agent[k].total_zoo.x) + fabs(agent[k].total_zop.x) < FLT_EPSILON && fabs(agent[k].total_zoo.y) + fabs(agent[k].total_zop.y) < FLT_EPSILON)
+            if(fabs(agent[k].total_zoo.x) + fabs(agent[k].total_zop.x) < FLT_EPSILON && fabs(agent[k].total_zoo.y) + fabs(agent[k].total_zop.y) < FLT_EPSILON)	// if no zoo fish were found or if they cancelled each other out
             {
                 // just do a correlated random walk
                 agent[k].desired_direction = agent[k].direction;
@@ -348,65 +350,9 @@ void CalculateSocialForces()
     }
 }
 
-void CueTiming()
-{
-    if(timestep_number == 0)
-    {
-        int array[number_of_locations];
-        for (int i = 0; i != number_of_locations; ++i) array[i] = i;
-        
-        for (int i = 0; i != number_of_cues; ++i)
-        {
-            // pick a random cue position
-            do current_cue_position = rnd::integer(number_of_locations);
-            while (array[current_cue_position] == -1);
-            array[current_cue_position] = -1;
-            
-            // activate chosen cue at chosen location
-            CS[i].centre = centres[current_cue_position];
-            CS[i].status = true;
-            CS[i].is_reward = true;
-        }
-    }
-}
-
-void RespondToCue()
-{
-    for (int j = 0; j != number_of_cues; ++j)
-    {
-        for (int i = 0; i != total_agents; ++i)
-        {
-            if (CS[j].status)
-            {
-                if (agent[i].r_centre.distanceTo(CS[j].centre) < cue_range * cue_range)
-                {
-                    agent[i].in_range = true;
-                    
-                    if (agent[i].r_centre.distanceTo(CS[j].centre) < reward_zone * reward_zone)
-                    {
-                        agent[i].RewardFunction(CS[j].reward_radius);
-                    }
-                }
-            }
-            
-            agent[i].AddPersonalPreference(CS[j].centre);
-            agent[i].in_range = false;
-            
-            if (CS[j].reward_radius <= FLT_EPSILON)
-            {
-                CS[j].status = false;
-                CS[j].reward_radius = food_particles;
-                ++food_consumed;
-                break;
-            }
-        }
-    }
-}
-
 void SetupSimulation()
 {
     timestep_number = 0;	// timestep number
-    SetupEnvironment();
     SetupAgents();
 }
 
@@ -414,8 +360,8 @@ void SetupAgents()
 {
     CVec2D set_r_centre;
     double set_omega;
-    double set_delta;
     double set_speed;
+    double set_delta;
     
     for(int i = 0; i != total_agents; ++i)
     {
@@ -427,42 +373,11 @@ void SetupAgents()
         if (set_omega < 0.0) set_omega = 0.0;
         if (set_delta < 0.0) set_delta = 0.0;
         
-        set_speed = rnd::normal(speed, ssd);
+        double value = speed - (set_delta - delta) / dsd * ssd;
+        set_speed = rnd::normal(value, ssd);
         if (set_speed < 0.0) set_speed = 0.0;
         
         agent[i].Setup(set_r_centre, set_direction, max_turning_rate, set_speed, zod, zoo, zop, angular_error_sd, set_omega, set_delta);
-    }
-}
-
-void SetupEnvironment()
-{
-    double theta = 2 * Pi / number_of_locations;
-    for (int i = 0; i != number_of_locations; ++i)
-    {
-        centres[i] = arena_centre + CVec2D(cue_dist * cos(i * theta), cue_dist * sin(i * theta));
-    }
-    
-    CVec2D set_centre;
-    int set_timer;
-    int set_reward_radius;
-    bool set_status;
-    double set_reliability;
-    
-    bool set_is_reward;
-    bool set_appeared;
-    
-    for( int i = 0; i != number_of_cues; ++i )
-    {
-        set_centre = CVec2D(0.0, 0.0);
-        set_timer = 0;
-        set_reward_radius = food_particles;
-        set_status = false;
-        set_reliability = 1.0f;
-        
-        set_is_reward = false;
-        set_appeared = false;
-        
-        CS[i].Setup(set_centre, set_timer, set_reward_radius, set_status, set_reliability, set_is_reward);
     }
 }
 
@@ -481,6 +396,7 @@ CVec2D RandomBoundedPoint()
     random_x += (double) (range_x / 2.0f - range_x / 200.0f);
     random_y += (double) (range_y / 2.0f - range_y / 200.0f);
     CVec2D random_point(random_x, random_y);
+    
     return random_point;
 }
 
@@ -504,26 +420,44 @@ void NearestNeighbourDistance()
     }
 }
 
-bool CalculateGroupProperties(CVec2D& centroid, CVec2D& polarisation)
+void CalculateGroupProperties(CVec2D& centroid, CVec2D& polarisation, double& rotation)
 {
     centroid.x = 0.0; centroid.y = 0.0;
     polarisation.x = 0.0; polarisation.y = 0.0;
+    rotation = 0.0;
     
-    // need to see if the group is cohesive first - return FALSE is it has split
-    EquivalenceClasses();
-    int group_size = 0;
-    
-    int equivalence_class = 0;
-    equivalence_class = agent[0].equivalence_class;
-    
-    for(int i = 0; i != total_agents; ++i)
+    for(int i = 0; i != total_agents - 1; ++i)
     {
         centroid += agent[i].r_centre;
-        polarisation += agent[i].direction;
-        ++group_size;
+        polarisation += (agent[i].direction.normalise());
     }
-    centroid /= total_agents;
-    polarisation /= total_agents;
+    centroid /= (total_agents - 1);
+    polarisation /= (total_agents - 1);
+    
+    for(int i = 0; i != total_agents - 1; ++i)
+    {
+        CVec2D r;
+        r = (agent[i].r_centre - centroid).normalise();
+        rotation += r.cross(agent[i].direction);
+    }
+    rotation /= total_agents;
+    rotation = abs(rotation);
+}
+
+bool GroupTogether()
+{
+    // need to see if the group is cohesive first - return FALSE is it has split
+    EquivalenceClasses();
+    
+    int group_size = 0;
+    int equivalence_class = 0;
+    
+    equivalence_class = agent[0].equivalence_class;
+    
+    for(int i = 0; i < total_agents; i++)
+    {
+        if(agent[i].equivalence_class == equivalence_class) ++group_size;
+    }
     
     if(group_size == total_agents) return 1;
     else return 0;
@@ -571,47 +505,19 @@ void EquivalenceClasses()
 
 void Graphics()
 {
-    // Colours vector
-    Scalar colours[8] = {Scalar(0, 0, 213), Scalar(0, 152, 255) , Scalar(0, 234, 174), Scalar(245, 165, 66), Scalar(255, 77, 124), Scalar(176, 39, 156), Scalar(167, 151,0), Scalar(0, 255, 255)};
-    
     // Draw arena
     Mat visualisation = Mat::zeros(arena_size, arena_size, CV_8UC3);
-    circle(visualisation, Point(arena_centre.x, arena_centre.y), arena_size / 2, Scalar(94, 73, 52), -1);
-    
-    // Draw cues
-    for (int i = 0; i != number_of_cues; ++i)
-    {
-        if (CS[i].status)
-        {
-            if (CS[i].is_reward)
-            {
-                circle(visualisation, Point(CS[i].centre.x, CS[i].centre.y), 2, colours[i], -1, CV_AA);
-                circle(visualisation, Point(CS[i].centre.x, CS[i].centre.y), cue_range, colours[i], 1, CV_AA);
-                circle(visualisation, Point(CS[i].centre.x, CS[i].centre.y), reward_zone, colours[i], 1, CV_AA);
-            }
-        }
-    }
-    CVec2D centroid;
-    CVec2D gdir;
-    CVec2D perp;
-    CalculateGroupProperties(centroid, gdir);
     
     // Draw agents
     for (int i = 0; i != total_agents; ++i)
     {
-        double rad = agent[i].FrontBackDistance(centroid, gdir);
-        if (rad > 0.0) circle(visualisation, Point(agent[i].r_centre.x, agent[i].r_centre.y), rad, Scalar(225, 225, 0));
-        else circle(visualisation, Point(agent[i].r_centre.x, agent[i].r_centre.y), -rad, Scalar(0, 225, 225));
-        
-        if (agent[i].speed > speed) circle(visualisation, Point(agent[i].r_centre.x, agent[i].r_centre.y), 2, Scalar(182, 89, 155), -1, CV_AA);
+        // agents faster than the mean speed are orange in colour
+        if (agent[i].speed > speed) circle(visualisation, Point(agent[i].r_centre.x, agent[i].r_centre.y), 2, Scalar(0, 152, 255), -1, CV_AA);
+        // agents slower than the mean are white
         else circle(visualisation, Point(agent[i].r_centre.x, agent[i].r_centre.y), 2, Scalar(241, 240, 236), -1, CV_AA);
+        
+        circle(visualisation, Point(agent[i].r_centre.x, agent[i].r_centre.y), sqrt(zop), Scalar(241, 240, 0));
     }
-    
-    // Draw group direction and perpendicular vector
-    perp = gdir;
-    perp.rotate(90.0);
-    line(visualisation, Point(centroid.x, centroid.y), Point(centroid.x + 50 * gdir.x, centroid.y + 50 * gdir.y), Scalar(0, 0, 255));
-    line(visualisation, Point(centroid.x - 50 * perp.x, centroid.y - 50 * perp.y), Point(centroid.x + 50 * perp.x, centroid.y + 50 * perp.y), Scalar(255, 255, 255));
     
     // Display timestep number & cue counter on screen
     putText(visualisation, to_string(timestep_number), cvPoint(10,30), FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
@@ -622,34 +528,22 @@ void Graphics()
 
 void GraphicsWriter(VideoWriter& video_writer, int& timestep_number, const int& num_timesteps)
 {
-    // Colours vector
-    Scalar colours[8] = {Scalar(0, 0, 213), Scalar(0, 152, 255) , Scalar(0, 234, 174), Scalar(245, 165, 66), Scalar(255, 77, 124), Scalar(176, 39, 156), Scalar(167, 151,0), Scalar(0, 255, 255)};
-    
     // Draw arena
     Mat visualisation = Mat::zeros(arena_size, arena_size, CV_8UC3);
-    circle(visualisation, Point(arena_centre.x, arena_centre.y), arena_size / 2, Scalar(94, 73, 52), -1);
-    
-    // Draw cues
-    for (int i = 0; i != number_of_cues; ++i)
-    {
-        if (CS[i].status)
-        {
-            if (CS[i].is_reward)
-            {
-                circle(visualisation, Point(CS[i].centre.x, CS[i].centre.y), reward_zone, colours[i], -1, CV_AA);
-            }
-        }
-    }
     
     // Draw agents
     for (int i = 0; i != total_agents; ++i)
     {
-        if (agent[i].omega > omega) circle(visualisation, Point(agent[i].r_centre.x, agent[i].r_centre.y), 2, Scalar(0, 152, 255), -1, CV_AA);
-        else circle(visualisation, Point(agent[i].r_centre.x, agent[i].r_centre.y), 2, Scalar(113, 204, 46), -1, CV_AA);
+        // agents faster than the mean speed are orange in colour
+        if (agent[i].speed > speed) circle(visualisation, Point(agent[i].r_centre.x, agent[i].r_centre.y), 2, Scalar(0, 152, 255), -1, CV_AA);
+        // agents slower than the mean are white
+        else circle(visualisation, Point(agent[i].r_centre.x, agent[i].r_centre.y), 2, Scalar(241, 240, 236), -1, CV_AA);
+        
+        circle(visualisation, Point(agent[i].r_centre.x, agent[i].r_centre.y), sqrt(zop), Scalar(241, 240, 0));
     }
     
     // Display timestep number & cue counter on screen
-    putText(visualisation, to_string(timestep_number), Point(10, 30), FONT_HERSHEY_COMPLEX_SMALL, 0.8, Scalar(200, 200, 250), 1, CV_AA);
+    putText(visualisation, to_string(timestep_number), cvPoint(10,30), FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200,200,250), 1, CV_AA);
     
     // Write video
     video_writer.write(visualisation); //writer the frame into the file
