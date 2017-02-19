@@ -22,8 +22,7 @@ public:
                const double& set_zone_of_perception, const double& set_angular_error_sd, const double& set_omega,
                const double& set_delta);
     
-    void Move(const double& timestep_inc, const CVec2D& arena_centre, const double& arena_size, double dev_angle,
-              const int& apply_boundary);
+    void Move(const double& timestep_inc, const double& arena_size, const double& dev_angle);
     
     CVec2D r_centre;            // Rotational centre of the agent (cm)
     CVec2D direction;           // vector representing the current direction of the agent
@@ -33,13 +32,14 @@ public:
     double zone_of_deflection;
     double zone_of_orientation;  // used only with the three zone model
     double zone_of_perception;
-    double zop_angle;
     double angular_error_sd;
     double omega;
     double delta;
     double nnd;
     double fitness;
-    bool in_range;
+    int    omega_rank;
+    int    delta_rank;
+    int    speed_rank;
     
     int zop_count;
     int zoo_count;
@@ -49,12 +49,9 @@ public:
     CVec2D total_zoo;
     CVec2D total_zop;
     
-    void TurnTowardsVector(CVec2D& vector, const double& timestep_inc, const double& dev_angle);
-    void MoveMyself(const double& timestep_inc);
-    void BoundaryCondition(const CVec2D& arena_centre, const double arena_size);
-    void AddPersonalPreference(CVec2D& current_cue_centre);
-    void RewardFunction(double& radius_at_approach);
-    void Copy(const individual& other);
+    void TurnTowardsVector(CVec2D& vector, double timestep_inc, double dev_angle);
+    void MoveMyself(const double& timestep_inc, const double& arena_size);
+    void AddPersonalPreference();
     
     double FrontBackDistance(CVec2D& centroid, CVec2D& group_direction);
     double DistancePtLine(CVec2D& a, CVec2D& b);

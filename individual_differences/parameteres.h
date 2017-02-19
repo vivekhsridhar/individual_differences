@@ -13,35 +13,30 @@
 #include <fstream>
 
 int     timestep_number;    // timestep number
-double   timestep_inc;       // time increment (between timesteps)
+double   timestep_inc;      // time increment (between timesteps)
 CVec2D  bottom_right;
 CVec2D  top_left;
-CVec2D  arena_centre;
 int     arena_size;
 int     total_agents;
 
-int     reward_zone;
-int     food_particles;
 int     apply_boundary;
-int     cue_range;
-int     food_consumed;
-double   cue_dist;
 
 double	angular_error_sd;
 double	max_turning_rate;
 double	zod;            // zone of deflection
-double  zoo;            // zone of orientation
+double  zoo;
 double	zop;            // zone of perception
-double  alpha;
-double  omega;
-double  osd;
-double  delta;
-double  dsd;
 double	speed;
 double  ssd;
+double  delta;
+double  dsd;
+double  omega;
+double  osd;
+double  alpha;          // blind angle
 double  iid;
 
 bool    record;
+bool    side;
 
 int     current_cue_position;
 CVec2D  centres[number_of_locations];
@@ -51,15 +46,13 @@ cue* CS;
 int main();
 void SetupSimulation();
 void SetupAgents();
-void SetupEnvironment();
 void CalculateSocialForces();
 void MoveAgents();
-void CueTiming();
-void RespondToCue();
 CVec2D RandomBoundedPoint();
 
 void NearestNeighbourDistance();
-bool CalculateGroupProperties(CVec2D& centroid, CVec2D& polarisation);
+void CalculateGroupProperties(CVec2D&, CVec2D&, double&);
+bool GroupTogether();
 bool Equivalent(individual&, individual&);	// testing for equivalence classes (school membership)
 void EquivalenceClasses();
 
