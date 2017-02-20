@@ -20,9 +20,10 @@ public:
     void Setup(const CVec2D& set_r_centre, const CVec2D& set_direction, const double& set_max_turning_rate,
                const double& set_speed, const double& set_zone_of_deflection, const double& set_zone_of_orientation,
                const double& set_zone_of_perception, const double& set_angular_error_sd, const double& set_omega,
-               const double& set_delta);
+               const double& set_delta, const bool& set_test_fish);
     
-    void Move(const double& timestep_inc, const double& arena_size, const double& dev_angle);
+    void Move(const double& timestep_inc, const CVec2D& arena_centre, const CVec2D& bottom_right, double dev_angle,
+              const bool& side, const int& compartment_size);
     
     CVec2D r_centre;            // Rotational centre of the agent (cm)
     CVec2D direction;           // vector representing the current direction of the agent
@@ -32,14 +33,14 @@ public:
     double zone_of_deflection;
     double zone_of_orientation;  // used only with the three zone model
     double zone_of_perception;
+    double zop_angle;
     double angular_error_sd;
     double omega;
     double delta;
     double nnd;
     double fitness;
-    int    omega_rank;
-    int    delta_rank;
     int    speed_rank;
+    int    omega_rank;
     
     int zop_count;
     int zoo_count;
@@ -49,12 +50,11 @@ public:
     CVec2D total_zoo;
     CVec2D total_zop;
     
-    void TurnTowardsVector(CVec2D& vector, double timestep_inc, double dev_angle);
-    void MoveMyself(const double& timestep_inc, const double& arena_size);
-    void AddPersonalPreference();
+    bool test_fish;
     
-    double FrontBackDistance(CVec2D& centroid, CVec2D& group_direction);
-    double DistancePtLine(CVec2D& a, CVec2D& b);
+    void TurnTowardsVector(CVec2D& vector, double timestep_inc, double dev_angle);
+    void MoveMyself(const double& timestep_inc, const CVec2D& bottom_right, const bool& side, const int& compartment_size);
+    void AddPersonalPreference();
 };
 
 #endif /* individual_h */
