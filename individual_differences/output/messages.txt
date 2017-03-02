@@ -1,0 +1,2 @@
+Thu Mar  2 10:12:28 2017 : random seed set to 2302059928
+Thu Mar  2 10:55:21 2017 : simulation end

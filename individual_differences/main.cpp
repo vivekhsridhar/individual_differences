@@ -1,27 +1,11 @@
 //
 //  main.cpp
-//  personality_extension:
-//  is an individual based simulation of individual differences and animal collectives. Agents in the simulation perform the "sociability assay" widely used in the field of "animal personalities". In this model, we show that what the field refers to as differences in "sociabilty" can in fact be reproduced with both individual differences in social interactions and differences in speed (and a combination of the two). Thus, observing the pattern resulting from the assay is not evidence for varying "sociability" in individuals. In fact, the speed model tends to suggest that it might actually be the opposite.
+//  individual_differences:
 //
-//  ----------------------------------------------------------------------------
-//  Important Parameters:
-//  1.  speed (and ssd): The speed model qualitatively reproduces the pattern shown by the "sociability assay". ssd is the standard deviation (s.d.) of the normal distribution used to pick agents (so agents across replicate simulations differ in their speeds as well)
-//  2.  delta (and dsd): The delta model represents social interactions between individuals as interpreted by the "personality" literature. Differences in delta also reproduces the assay pattern. dsd is the standard deviation (s.d.) of the normal distribution used to pick delta
-//  3.  omega (and osd): Omega is how individuals weight their personal preference. This refers to their current direction of movement in this particular case. osd is the standard deviation (s.d.) of the normal distribution used to pick omega
-//
-//  ----------------------------------------------------------------------------
 //  Created by Vivek Hari Sridhar on 10/08/16.
 //  Copyright © 2016 Vivek Hari Sridhar. All rights reserved.
 //
 
-#include <cmath>
-#include <limits.h>
-#include <cfloat>
-#include <stdio.h>
-#include <stdlib.h>
-#include <thread>
-#include <algorithm>
-#include <functional>
 #include "opencv2/core.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
