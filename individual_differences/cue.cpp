@@ -1,12 +1,16 @@
 //
 //  cue.cpp
-//  DecisionNetwork
+//  individual_differences
 //
-//  Created by Vivek Hari Sridhar on 04/03/16.
+//  Created by Vivek Hari Sridhar on 10/08/16.
 //  Copyright © 2016 Vivek Hari Sridhar. All rights reserved.
 //
 
 #include "cue.h"
+
+//**************************************************************************************************
+//**	CONSTRUCTORS AND SETUP OF CLASS 'CUE'   ****************************************************
+//**************************************************************************************************
 
 cue::cue(void) : status(0), reliability(0.0)
 {
