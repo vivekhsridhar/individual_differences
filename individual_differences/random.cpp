@@ -129,6 +129,22 @@ namespace rnd {
         return distr(rng);
 	}
     
+    double gamma(const double &shape, const double &scale)
+    {
+        typedef std::gamma_distribution<double> distribution;
+        static double z1 = shape, z2 = scale;
+        static distribution distr (z1, z2);
+        if (shape > 0.0 && scale > 0.0) {
+            if (z1 != shape || z2 != scale) {
+                z1 = shape;
+                z2 = scale;
+                distr = distribution(z1, z2);
+            }
+        }
+        else error("argument out of range", CURRENT_FUNCTION);
+        return distr(rng);
+    }
+    
     double exponential(const double &r)
 	{
         typedef std::exponential_distribution<double> distribution;

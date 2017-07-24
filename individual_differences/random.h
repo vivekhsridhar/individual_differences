@@ -50,6 +50,7 @@ namespace rnd
 	int poisson(const double& = 1.0);
 	double uniform();
     double normal(const double& = 0.0, const double& = 1.0);
+    double gamma(const double& = 1.0, const double& = 1.0);
     double exponential(const double& = 1.0);
     
     extern std::mt19937 rng;
