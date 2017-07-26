@@ -19,9 +19,7 @@ in proximity to neighbours in the assay context (traditional measure of "sociabi
 
 The simulation was written in C++ and uses OpenCV for visualisation.
 
-Note: The code provided here does not overlap perfectly with what is used in the manuscript. There are aspects of the code
-that are used in the manuscript, that aren't described here (a zero bounded distribution to chose individual speeds from).
-Also, not all code presented here was used in the manuscript (the assay branch).
+Note: The code provided here is not a perfect overlap with what is described in the manuscript. This code is a subtle variation on what is used in the manuscript. All major results should still hold though.
 
 Reference
 ==========
