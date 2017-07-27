@@ -21,6 +21,11 @@ The simulation was written in C++ and uses OpenCV for visualisation.
 
 Note: The code provided here is not a perfect overlap with what is described in the manuscript. This code is a subtle variation on what is used in the manuscript. All major results should still hold though.
 
+Use
+---
+
+The above code is written using C++11 and tested on MacOS Sierra 10.12.5. The visualisation is executed using OpenCV 3.2.0. In case of troubles installing OpenCV / linking it to the C++ project, visualisation can be turned off by silencing OpenCV headers and the graphics function in main.cpp. The rest of the code should still work on naked C++.
+
 Reference
 ---------
 
