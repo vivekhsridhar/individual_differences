@@ -29,7 +29,7 @@ The above code is written using C++11 and tested on MacOS Sierra 10.12.5. The vi
 Cite
 ----
 
-If you use Tracktor, please cite it using this zenodo DOI:
+If you use this code, please cite it using this zenodo DOI:
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.840644.svg)](https://doi.org/10.5281/zenodo.840644)
 
