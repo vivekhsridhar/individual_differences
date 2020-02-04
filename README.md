@@ -40,4 +40,4 @@ Reference
 ---------
 
 1. Jolle W. Jolles, Neeltje J. Boogert, Vivek H. Sridhar, Iain D. Couzin, and Andrea Manica, Consistent individual
-differences drive collective behaviour and group functioning of schooling fish, _Curr Biol (accepted)_ (2017).
+differences drive collective behaviour and group functioning of schooling fish, _Curr Biol_ (2017).
