@@ -11,7 +11,7 @@
 #include "vector2D.h"
 #include "random.h"
 
-const int number_of_cues = 3;
+const int number_of_cues = 6;
 const int number_of_locations = 6;
 
 //**************************************************************************************************
